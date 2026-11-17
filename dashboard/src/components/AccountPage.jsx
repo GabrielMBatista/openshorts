@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { Loader2, CreditCard, LogOut, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiJson } from '../lib/api';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import { useBackFromStripe } from '../lib/backFromStripe';
 import ApiKeysCard from './ApiKeysCard';
 import McpConnectCard from './McpConnectCard';
@@ -28,7 +28,7 @@ export default function AccountPage() {
   const [activating, setActivating] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
 
-  // After returning from Checkout the webhook may lag — poll /api/me briefly.
+  // After returning from Checkout the webhook may lag â€” poll /api/me briefly.
   useEffect(() => {
     const hash = window.location.hash || '';
     if (!hash.includes('checkout=success')) return;
@@ -38,7 +38,7 @@ export default function AccountPage() {
       tries += 1;
       const data = await refreshMe();
       // 'free' is the default plan for any signed-in account, so it does NOT
-      // mean the checkout landed — keep polling until the webhook writes the
+      // mean the checkout landed â€” keep polling until the webhook writes the
       // paid subscription.
       const paidPlan = data?.plan && data.plan !== 'free';
       if (paidPlan || tries > 15) {
@@ -51,7 +51,7 @@ export default function AccountPage() {
           let pending = null;
           try { pending = JSON.parse(localStorage.getItem('os_pending_checkout') || 'null'); } catch (_) { /* ignore */ }
           if (pending) {
-            // This Plausible is Community Edition, which has no revenue goals —
+            // This Plausible is Community Edition, which has no revenue goals â€”
             // so the price rides along as plain props (value_usd / plan) that CE
             // can break the goal down by. The exact MRR still lives in Stripe.
             track('Subscribed', {
@@ -156,7 +156,7 @@ export default function AccountPage() {
 
       {activating && (
         <div className="card px-4 py-3 text-sm text-ink2 flex items-center gap-2 lowercase">
-          <Loader2 size={16} className="animate-spin text-brass" /> Activating your plan…
+          <Loader2 size={16} className="animate-spin text-brass" /> Activating your planâ€¦
         </div>
       )}
 
@@ -164,7 +164,7 @@ export default function AccountPage() {
         <div className="flex items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-ink font-medium capitalize">{plan ? `${plan} plan` : 'No active plan'}</span>
-            {/* Payment-issue states get the explanatory banner below instead —
+            {/* Payment-issue states get the explanatory banner below instead â€”
                 showing raw Stripe jargon ("past_due") twice explains nothing. */}
             {me.status && me.status !== 'active' && me.status !== 'on_hold'
               && !PAYMENT_ISSUE_STATES.includes(me.status) && (
@@ -174,7 +174,7 @@ export default function AccountPage() {
               <span className="badge-warn">cancels at period end</span>
             )}
           </div>
-          {/* Any Stripe relationship — live OR broken (past_due, unpaid) — must
+          {/* Any Stripe relationship â€” live OR broken (past_due, unpaid) â€” must
               keep the portal reachable. A declined card demotes `plan` to free,
               so keying this off the plan alone hid the one button that fixes it. */}
           {me.has_billing_account ? (
@@ -189,7 +189,7 @@ export default function AccountPage() {
         </div>
 
         {/* A bare "past_due" chip explains nothing. Say what happened and what
-            fixes it — this is the whole reason the account reads as free. */}
+            fixes it â€” this is the whole reason the account reads as free. */}
         {PAYMENT_ISSUE_STATES.includes(me.status) && (
           <div className="mb-4 rounded-card border border-warn/40 bg-warn/5 p-3 text-sm text-ink2">
             <b className="text-ink">We couldn't charge your card.</b>{' '}

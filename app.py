@@ -4327,6 +4327,191 @@ def _signed_media_url(url_path: str, base: str = "") -> str:
     return media_auth.sign_absolute_url(base, url_path, secret)
 
 
+# --- LLM do scoring: duas vias diretas, sem proxy ---
+# NVIDIA NIM (key nvapi-, arquivo .nvidia-key) e OpenCode Zen Go (key sk-,
+# arquivo .opencode-key). O seletor do front grava o modelo ativo em .llm-model.
+# Tudo gitignored; keys nunca em env de job, log ou chat.
+_LLM_DIR = os.path.dirname(os.path.abspath(__file__))
+_LLM_LISTA_TTL = 300.0
+_llm_lista_cache: dict = {"em": 0.0, "modelos": []}
+
+
+def _llm_ler(nome: str):
+    try:
+        with open(os.path.join(_LLM_DIR, nome), encoding="utf8") as f:
+            v = f.read().strip()
+            return v or None
+    except OSError:
+        return None
+
+
+def _llm_gravar(nome: str, valor: str):
+    caminho = os.path.join(_LLM_DIR, nome)
+    v = (valor or "").strip()
+    if v == "":
+        if os.path.exists(caminho):
+            os.remove(caminho)
+        return
+    with open(caminho, "w", encoding="utf8") as f:
+        f.write(v)
+
+
+async def _llm_modelos() -> list:
+    import time
+    import re as _re
+    agora = time.time()
+    if agora - _llm_lista_cache["em"] < _LLM_LISTA_TTL:
+        return _llm_lista_cache["modelos"]
+    modelos: list = []
+    nv = _llm_ler(".nvidia-key")
+    if nv:
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as c:
+                r = await c.get("https://integrate.api.nvidia.com/v1/models",
+                                headers={"Authorization": f"Bearer {nv}"})
+            if r.status_code == 200:
+                modelos += [m["id"] for m in r.json().get("data", [])
+                            if not _re.search(r"embed|guard|clip|riva|detector|safety|calibration|reasoning|omni|-vl-", m["id"], _re.I)]
+        except Exception:
+            pass
+    zk = _llm_ler(".opencode-key")
+    if zk:
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as c:
+                r = await c.get("https://opencode.ai/inference/v1/models",
+                                headers={"Authorization": f"Bearer {zk}"})
+            if r.status_code == 200:
+                # so modelos da familia chat/completions (GPT usa Responses, Claude/Qwen
+                # usam Messages, Gemini tem API propria — nosso generate_json e OpenAI);
+                # os -free do OpenCode retornam 403 de clientes externos (doc oficial)
+                modelos += [m["id"] for m in r.json().get("data", [])
+                            if not _re.search(r"gpt|claude|qwen|gemini|embed|guard|-free", m["id"], _re.I)]
+        except Exception:
+            pass
+    modelos = sorted(set(modelos))
+    _llm_lista_cache.update(em=agora, modelos=modelos)
+    return modelos
+
+
+# ---- Focus presets (user-marked presenter region, per channel/source) ----
+# One JSON of {"name": {"x": centre_fraction, "wf": width_fraction}}. A job
+# whose source name contains the preset name (or that names it explicitly)
+# starts with FOCUS_X set, so the reframer tracks that region instead of
+# guessing — see main.py detect_focus_candidate.
+
+_FOCUS_PRESETS_FILE = os.path.join(OUTPUT_DIR, ".focus_presets.json")
+
+
+def _focus_presets_load() -> dict:
+    try:
+        with open(_FOCUS_PRESETS_FILE, encoding="utf8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def _focus_presets_save(data: dict):
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    tmp = _FOCUS_PRESETS_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=1)
+    os.replace(tmp, _FOCUS_PRESETS_FILE)
+
+
+def _focus_preset_norm(s: str) -> str:
+    return "".join(ch for ch in str(s or "").lower() if ch.isalnum())
+
+
+def _focus_preset_for(source_hint: str, explicit: str = None) -> Optional[dict]:
+    """Pick the preset for this job. Explicit name wins; otherwise the first
+    preset whose normalized name appears inside (or contains) the normalized
+    source hint."""
+    presets = _focus_presets_load()
+    if not presets:
+        return None
+    if explicit:
+        p = presets.get(explicit)
+        if p:
+            return {"name": explicit, **p}
+    hint = _focus_preset_norm(source_hint)
+    if not hint:
+        return None
+    for name, p in presets.items():
+        n = _focus_preset_norm(name)
+        if n and (n in hint or hint in n):
+            return {"name": name, **p}
+    return None
+
+
+@app.get("/api/focus-presets")
+async def focus_presets_list():
+    return {"presets": _focus_presets_load()}
+
+
+@app.post("/api/focus-preset")
+async def focus_preset_save(request: Request):
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="JSON inválido")
+    name = str(body.get("name") or "").strip()
+    try:
+        x = float(body.get("x"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="x deve ser número (fração da largura)")
+    wf = body.get("wf")
+    try:
+        wf = float(wf) if wf is not None else 0.22
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="wf deve ser número")
+    if not name:
+        raise HTTPException(status_code=400, detail="nome do preset obrigatório")
+    presets = _focus_presets_load()
+    presets[name] = {"x": round(max(0.0, min(1.0, x)), 4),
+                     "wf": round(max(0.05, min(0.9, wf)), 4)}
+    _focus_presets_save(presets)
+    return {"ok": True, "name": name, "presets": presets}
+
+
+@app.delete("/api/focus-preset/{name}")
+async def focus_preset_delete(name: str):
+    presets = _focus_presets_load()
+    if name in presets:
+        del presets[name]
+        _focus_presets_save(presets)
+    return {"ok": True, "presets": presets}
+
+
+@app.get("/api/llm-config")
+async def llm_config_get():
+    import llm_backend
+    return {
+        "model": llm_backend.model_name(),
+        "modelos": await _llm_modelos(),
+        "nvidia": bool(_llm_ler(".nvidia-key")),
+        "opencode": bool(_llm_ler(".opencode-key")),
+    }
+
+
+@app.post("/api/llm-config")
+async def llm_config_post(request: Request):
+    body = await request.json()
+    if "opencode_key" in body:
+        k = str(body["opencode_key"] or "").strip()
+        if k and not k.startswith(("sk-", "oc_sk_")):
+            return JSONResponse(status_code=400, content={"error": "key OpenCode deve comecar com sk- ou oc_sk_ (ou vazia pra remover)"})
+        _llm_gravar(".opencode-key", k)
+    if "nvidia_key" in body:
+        k = str(body["nvidia_key"] or "").strip()
+        if k and not k.startswith("nvapi-"):
+            return JSONResponse(status_code=400, content={"error": "key NVIDIA deve comecar com nvapi- (ou vazia pra remover)"})
+        _llm_gravar(".nvidia-key", k)
+    if "model" in body:
+        _llm_gravar(".llm-model", str(body["model"] or ""))
+    return {"ok": True}
+
+
 @app.post("/api/media-token")
 async def issue_media_token(request: Request):
     """A short-lived token for the caller's own media, for the places that
@@ -5490,6 +5675,7 @@ async def process_endpoint(
     max_minutes: Optional[str] = Form(None),
     source_start: Optional[str] = Form(None),
     source_end: Optional[str] = Form(None),
+    focus_preset: Optional[str] = Form(None),
 ):
     api_key = await resolve_gemini(request)
     if not api_key and not (llm_backend.active() and not BILLING_ENABLED):
@@ -5524,6 +5710,7 @@ async def process_endpoint(
         max_minutes = body.get("max_minutes")
         source_start = body.get("source_start")
         source_end = body.get("source_end")
+        focus_preset = body.get("focus_preset")
 
     # Normalize output format (auto = keep pipeline default).
     if output_format not in ("vertical", "horizontal", "square"):
@@ -5621,6 +5808,23 @@ async def process_endpoint(
     env.update(chosen)
     if chosen:
         print(f"[layouts] job={job_id} enabled={sorted(chosen)}")
+
+    # User-marked presenter region (channel preset): explicit name or the
+    # first preset matched against the source hint. Sets FOCUS_X so the
+    # reframer template-tracks that region for the whole job.
+    _focus_src_hint = " ".join(filter(None, [
+        (file.filename if file is not None else ""),
+        (upload_slot.get("filename") if isinstance(upload_slot, dict) else ""),
+        url or "",
+    ]))
+    _preset = _focus_preset_for(_focus_src_hint,
+                                explicit=(focus_preset or "").strip() or None)
+    if _preset:
+        env["FOCUS_X"] = str(_preset["x"])
+        if _preset.get("wf"):
+            env["FOCUS_WF"] = str(_preset["wf"])
+        print(f"[focus] job={job_id} preset='{_preset['name']}' "
+              f"x={_preset['x']} wf={_preset.get('wf')}")
 
     # Auto-hook: burn each clip's Gemini hook text during the render. Off when
     # the field is absent, so API/MCP/webhook callers keep their old output

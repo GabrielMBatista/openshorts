@@ -395,6 +395,13 @@ def _trajectory_loop(next_frame, sparse, n_frames, scenes_boundaries,
                 if sparse:
                     frame = next_frame(frame_number)
                 candidates = m.detect_face_candidates(frame)
+                # The user-marked presenter region (channel preset, if any)
+                # competes with the automatic detectors; inside the tracker
+                # its score boost decides, so it follows the camera if it
+                # moves and yields when it leaves the screen.
+                _focus = m.detect_focus_candidate(frame)
+                if _focus:
+                    candidates.append(_focus)
                 for cand in candidates:
                     cand['box'] = [int(v * scale) for v in cand['box']]
                     cand['score'] = cand['box'][2] * cand['box'][3]

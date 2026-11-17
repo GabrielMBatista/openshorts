@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Upload, Sparkles, Youtube, Instagram, Share2, ChevronDown, Check, Activity, LayoutDashboard, Settings, Plus, History, X, Terminal, Shield, LayoutGrid, Image, Globe, RotateCcw, Calendar, AlertTriangle, KeyRound, Bot, Users, Smartphone, ExternalLink, Copy, CheckCircle2, Mail, Loader2, Download, Menu, Lock, Rocket } from 'lucide-react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Upload, Sparkles, Youtube, Instagram, Share2, ChevronDown, Check, Activity, LayoutDashboard, Settings, Plus, History, X, Terminal, Shield, LayoutGrid, Image, Globe, RotateCcw, Calendar, AlertTriangle, KeyRound, Bot, Users, Smartphone, ExternalLink, Copy, CheckCircle2, Mail, Loader2, Download, Menu, Lock, Rocket, Cpu } from 'lucide-react';
 import KeyInput from './components/KeyInput';
 import MediaInput from './components/MediaInput';
 import McpConnectCard from './components/McpConnectCard';
@@ -31,7 +31,7 @@ import Modal from './components/ui/Modal';
 import { useAuth } from './contexts/AuthContext';
 import { apiFetch, apiJson, QuotaError, QUOTA_WALL_EVENT } from './lib/api';
 import { SOCIAL_PLATFORMS } from './lib/socialPlatforms';
-import { track } from './lib/analytics';
+import { track } from './lib/insights';
 import { readConnectReturn, stripConnectReturn } from './lib/connectReturn';
 import { rememberTabAfterLogin } from './lib/tabAfterLogin';
 import { JobPollError, pollFailureAction } from './lib/jobPoll';
@@ -82,7 +82,7 @@ const TikTokIcon = ({ size = 16, className = "" }) => (
   </svg>
 );
 
-// Cloud accounts get an auto-generated opaque id (os_<hash>) as username —
+// Cloud accounts get an auto-generated opaque id (os_<hash>) as username â€”
 // meaningless to the user, so the selector shows connected networks instead.
 const isAutoProfileId = (username) => /^os_[0-9a-f]/i.test(username || "");
 
@@ -241,7 +241,7 @@ const UserProfileSelector = ({ profiles, selectedUserId, onSelect, onConnect }) 
             ))}
           </div>
           {/* For managed users this dropdown otherwise does nothing (one profile,
-              nothing to switch) — its real job is being the door to connecting
+              nothing to switch) â€” its real job is being the door to connecting
               the greyed-out networks it displays. */}
           {onConnect && (
             <button
@@ -321,11 +321,57 @@ function App() {
   }, [queueSlow, queueInfo]);
   // Why the last job could not start or failed, in plain words (or '').
   const [jobError, setJobError] = useState('');
-  // Durable R2 URLs (per clip index) for the current job — used as a fallback when
+  // Durable R2 URLs (per clip index) for the current job â€” used as a fallback when
   // the ephemeral local /videos/ files have been cleaned up (e.g. after a reload).
   const [durableClips, setDurableClips] = useState({});
 
   const [apiKey, setApiKey] = useState(localStorage.getItem('gemini_key') || '');
+  // LLM do scoring: 2 vias diretas (NVIDIA NIM e OpenCode Zen Go), sem proxy.
+  // Keys vao pro backend -> arquivos gitignored; o modelo ativo vai pra .llm-model.
+  const [opencodeKey, setOpencodeKey] = useState(() => localStorage.getItem('opencodeKey_v1') || '');
+  const [nvidiaKey, setNvidiaKey] = useState(() => localStorage.getItem('nvidiaApiKey_v1') || '');
+  const [llmStatus, setLlmStatus] = useState({ nvidia: false, opencode: false, model: '', modelos: [] });
+  const [llmErro, setLlmErro] = useState('');
+  const syncLlmConfig = async () => {
+    try {
+      const r = await apiFetch(getApiUrl('/api/llm-config'));
+      setLlmStatus({ nvidia: !!r.nvidia, opencode: !!r.opencode, model: r.model || '', modelos: r.modelos || [] });
+    } catch { /* backend fora - mantem o estado */ }
+  };
+  const salvarLlmConfig = async () => {
+    setLlmErro('');
+    try {
+      const r = await fetch(getApiUrl('/api/llm-config'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          opencode_key: opencodeKey.trim(),
+          nvidia_key: nvidiaKey.trim(),
+          // model so vai se o seletor tiver valor — Save vazio nao apaga o .llm-model
+          ...(llmStatus.model ? { model: llmStatus.model } : {}),
+        }),
+      });
+      if (!r.ok) {
+        const j = await r.json().catch(() => ({}));
+        setLlmErro(j.error || `erro ${r.status}`);
+        return;
+      }
+      localStorage.setItem('opencodeKey_v1', opencodeKey.trim());
+      localStorage.setItem('nvidiaApiKey_v1', nvidiaKey.trim());
+      setLlmErro('');
+      syncLlmConfig();
+    } catch { setLlmErro('backend inacessivel'); }
+  };
+  const trocarLlmModel = async (model) => {
+    setLlmStatus((s) => ({ ...s, model }));
+    try {
+      await apiFetch(getApiUrl('/api/llm-config'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model }),
+      });
+    } catch { /* sem backend - preferencia reaplicada no proximo sync */ }
+  };
   // Social API State - Load encrypted or plain
   const [uploadPostKey, setUploadPostKey] = useState(() => {
     const stored = localStorage.getItem('uploadPostKey_v3');
@@ -350,7 +396,7 @@ function App() {
   const [userProfiles, setUserProfiles] = useState([]); // List of {username, connected: []}
   // Post-generation social nudge: shown at the results peak until the user
   // either connects a network or dismisses it. Only 2.7% of cloud users who
-  // reach the social flow ever connect an account — this is the moment (clips
+  // reach the social flow ever connect an account â€” this is the moment (clips
   // just appeared) with the best odds of moving that number.
   const [socialNudgeDismissed, setSocialNudgeDismissed] = useState(() => {
     try { return localStorage.getItem('os_social_nudge_dismissed') === '1'; } catch (_) { return false; }
@@ -368,7 +414,7 @@ function App() {
   const [status, setStatus] = useState('idle'); // idle, processing, complete, error
   const [results, setResults] = useState(null);
   // Best clips first. The backend hands them back in transcript order, which
-  // buries the strongest one wherever it happens to fall in the video — and
+  // buries the strongest one wherever it happens to fall in the video â€” and
   // the first card is the one people actually watch and publish.
   //
   // The ORIGINAL array position travels with each clip and is what gets passed
@@ -404,6 +450,10 @@ function App() {
   });
   const [processingMedia, setProcessingMedia] = useState(null);
   const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, settings
+  // Sync das config de LLM (key NVIDIA no backend + modelos do proxy) ao abrir Settings
+  useEffect(() => {
+    if (activeTab === 'settings') { syncLlmConfig(); }
+  }, [activeTab]);
   // Mobile only: the full nav lives in a drawer behind the header's menu button.
   const [navOpen, setNavOpen] = useState(false);
   // Reopened-project state (paid mode): per-clip {index, server_file, active_layers}
@@ -629,7 +679,7 @@ function App() {
     setNoSource(true);
     setJobId(data.job_id);
     setResults(data.result || null);
-    setLogs(['♻️ Project restored from your library.']);
+    setLogs(['â™»ï¸ Project restored from your library.']);
     setLogTimes([Date.now() / 1000]);
     setProcessingMedia(null);
     setQualityGate(null);
@@ -724,7 +774,7 @@ function App() {
         setJobId(session.jobId);
         setResults(session.results || null);
         // Restore the source preview. Older sessions (or uploads) saved no
-        // media, so fall back to the backend-served source for this job —
+        // media, so fall back to the backend-served source for this job â€”
         // except for reopened projects, whose source was never persisted.
         if (session.processingMedia) setProcessingMedia(session.processingMedia);
         else if (!session.noSource) setProcessingMedia({ type: 'server', payload: `/api/source/${session.jobId}` });
@@ -908,7 +958,7 @@ function App() {
   }, [status, jobId, refreshMe]);
 
 
-  // silent: background auto-fetch — never alert(), just log. Managed users need
+  // silent: background auto-fetch â€” never alert(), just log. Managed users need
   // no local key (the server resolves its own); BYOK sends the header.
   const fetchUserProfiles = async ({ silent = false } = {}) => {
     if (!uploadPostKey && !isManaged) return;
@@ -934,16 +984,16 @@ function App() {
   };
 
   // Hosted is paid-only (no BYOK core). Self-host uses BYOK keys.
-  // `keysMissing` now means "self-host BYOK keys missing" — it never fires on hosted.
+  // `keysMissing` now means "self-host BYOK keys missing" â€” it never fires on hosted.
   // A self-hosted server running the moment picker on a local LLM
   // (LLM_BASE_URL) does not need a Gemini key for the core pipeline.
   const geminiOk = !!apiKey || !!localLlm;
-  const keysMissing = !billingEnabled && (!geminiOk || !uploadPostKey);
+  const keysMissing = !billingEnabled && !geminiOk; // Upload-Post Ã© sÃ³ pra publicar â€” nÃ£o bloqueia a geraÃ§Ã£o
   const needsPlan = billingEnabled && !isManaged;   // hosted, signed-out or no active plan/trial
 
   // Fresh sign-up: Clip Generator tutorial (AuthContext set os_show_clip_tutorial
   // after the auth redirect). QA: #app?tutorial=1. Resume coach if they refreshed
-  // mid-job. Runs once on mount so a later isSignedIn flip cannot reset intro→coach.
+  // mid-job. Runs once on mount so a later isSignedIn flip cannot reset introâ†’coach.
   useEffect(() => {
     let showTutorial = false;
     let resumeCoach = false;
@@ -1096,7 +1146,7 @@ function App() {
 
   // Social nudge visibility: managed users with clips on screen and no network
   // connected yet. userProfiles being empty (not yet fetched / none created)
-  // also counts as "not connected" — that is the 97% case.
+  // also counts as "not connected" â€” that is the 97% case.
   const connectedSocials = ((userProfiles.find((p) => p.username === uploadUserId) || userProfiles[0])?.connected) || [];
   const showAutopilotNudge = billingEnabled && isManaged && !autopilotNudgeDismissed && !autopilotOn && !tutorialLock;
   const showSocialNudge = isManaged && !socialNudgeDismissed && connectedSocials.length === 0 && !tutorialLock
@@ -1248,7 +1298,7 @@ function App() {
       if (!res.ok) throw new Error(await res.text());
       const resData = await res.json();
 
-      // Quality gate: the source is below the min resolution — ask before burning
+      // Quality gate: the source is below the min resolution â€” ask before burning
       // 20 min on it. On confirm we resend with force_low_quality.
       if (resData.needs_confirmation) {
         setStatus('idle');
@@ -1283,8 +1333,8 @@ function App() {
       if (e instanceof QuotaError) {
         setStatus('idle');
         refreshMe();
-        // Trial users hit the trial minute cap → prompt them to activate the plan
-        // now (unlocks full minutes). Active users → offer a top-up.
+        // Trial users hit the trial minute cap â†’ prompt them to activate the plan
+        // now (unlocks full minutes). Active users â†’ offer a top-up.
         if (me?.status === 'trialing') {
           setShowTrialUpgrade(true);
         } else {
@@ -1315,8 +1365,8 @@ function App() {
   };
 
   // Resume the job the visitor started before signing in. Runs on the render
-  // that first sees isSignedIn true — after a magic link or a Google round trip,
-  // i.e. a fresh document — and replays the request through handleProcess, so
+  // that first sees isSignedIn true â€” after a magic link or a Google round trip,
+  // i.e. a fresh document â€” and replays the request through handleProcess, so
   // the entitlement gate still decides whether it actually runs: an unentitled
   // account lands on #/pricing with the request still parked, and pays for it
   // later. `resumedStamp` keeps one parked request from being replayed twice in
@@ -1361,7 +1411,7 @@ function App() {
   // --- UI Components ---
 
   // One nav definition drives all three surfaces: the desktop rail, the mobile
-  // drawer, and the bottom tab bar. `short` is the tab-bar label — the full one
+  // drawer, and the bottom tab bar. `short` is the tab-bar label â€” the full one
   // wraps to two lines in a 5-up bar on a 360px phone.
   const navItems = [
     { id: 'dashboard', ord: '01', icon: LayoutDashboard, label: 'Clip Generator', short: 'clips', primary: true },
@@ -1392,7 +1442,7 @@ function App() {
   };
   const tabLocked = (id) => tutorialLock && id !== 'dashboard';
 
-  // Shared footer links (landing, repo, pricing, contact) — same list in the
+  // Shared footer links (landing, repo, pricing, contact) â€” same list in the
   // desktop rail and the mobile drawer, so they can never drift apart.
   const NavFooterLinks = ({ collapsed = false }) => (
     <>
@@ -1432,7 +1482,7 @@ function App() {
   );
 
   // Desktop rail: icon-only from md, labelled from lg. Below md it is gone
-  // entirely — an unlabelled 80px rail ate a fifth of a phone screen.
+  // entirely â€” an unlabelled 80px rail ate a fifth of a phone screen.
   const Sidebar = () => (
     <div className="hidden md:flex w-20 lg:w-64 bg-paper2 border-r border-rule flex-col h-full shrink-0 transition-all duration-300">
       <a href="#app" onClick={() => goToTab('dashboard')} className="p-6 flex items-center gap-3" title="openshorts home">
@@ -1628,7 +1678,7 @@ function App() {
             )}
 
             {/* Cloud: minutes meter + account/sign-in. For free users the meter
-                opens the upgrade modal — otherwise the only path to a plan is
+                opens the upgrade modal â€” otherwise the only path to a plan is
                 failing against the quota wall. */}
             {billingEnabled && isManaged && (
               <UsageMeter onClick={() => {
@@ -1659,33 +1709,21 @@ function App() {
                 title="Configure API keys or choose a plan"
               >
                 <AlertTriangle size={12} />
-                <span className="hidden md:inline">
-                  {!geminiOk && !uploadPostKey
-                    ? 'Gemini & Upload-Post keys missing'
-                    : !geminiOk
-                      ? 'Gemini API Key Missing'
-                      : 'Upload-Post API Key Missing'}
-                </span>
+                <span className="hidden md:inline">Gemini API Key Missing</span>
                 <span className="md:hidden">keys missing</span>
               </button>
             )}
           </div>
         </header>
 
-        {/* Persistent Missing Keys Banner — visible on every screen */}
+        {/* Persistent Missing Keys Banner â€” visible on every screen */}
         {keysMissing && activeTab !== 'settings' && (
           <div className="mx-3 sm:mx-6 mt-3 px-3.5 sm:px-4 py-3 bg-paper2 border border-rule rounded-card flex flex-wrap items-center justify-between gap-2.5 sm:gap-4 shrink-0 animate-fade">
             <div className="flex items-start sm:items-center gap-2.5 sm:gap-3 text-sm text-ink2 min-w-0 flex-1">
               <KeyRound size={16} className="shrink-0 text-warn mt-0.5 sm:mt-0" />
               <div className="min-w-0">
                 <span className="font-medium text-ink">Required API keys missing.</span>{' '}
-                <span className="text-muted">
-                  {!geminiOk && !uploadPostKey
-                    ? 'Set your Gemini and Upload-Post API keys to use OpenShorts.'
-                    : !geminiOk
-                      ? 'Set your Gemini API key to use OpenShorts.'
-                      : 'Set your Upload-Post API key to use OpenShorts.'}
-                </span>
+                <span className="text-muted">Set your Gemini API key to use OpenShorts.</span>
               </div>
             </div>
             <button
@@ -1751,7 +1789,7 @@ function App() {
             <div className="h-full overflow-y-auto p-4 sm:p-8 max-w-2xl mx-auto animate-fade">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-8">
                 <div>
-                  <p className="eyebrow mb-1.5">08 · SETTINGS</p>
+                  <p className="eyebrow mb-1.5">08 Â· SETTINGS</p>
                   <h1 className="font-display lowercase text-2xl text-ink">Settings</h1>
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted mt-1">
@@ -1774,7 +1812,7 @@ function App() {
                   </div>
                   <p className="text-xs text-muted mb-5 leading-relaxed">
                     Your plan includes the <strong>Clip Generator</strong> and <strong>YouTube Studio</strong>,
-                    fully managed — no API keys required. AI Shorts &amp; dubbing use your own fal.ai / ElevenLabs
+                    fully managed â€” no API keys required. AI Shorts &amp; dubbing use your own fal.ai / ElevenLabs
                     keys (below). Connect your social accounts to publish directly.
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -1798,7 +1836,7 @@ function App() {
                     <span className="badge-ok">Free plan available</span>
                   </div>
                   <p className="text-xs text-muted mb-5 leading-relaxed">
-                    Generate shorts with zero setup — no API keys needed. Start free with 20 min/month, or go paid from $12/mo. Cancel anytime.
+                    Generate shorts with zero setup â€” no API keys needed. Start free with 20 min/month, or go paid from $12/mo. Cancel anytime.
                   </p>
                   <button onClick={() => setShowPlanChoice(true)} className="btn-primary py-2 px-4 text-sm">
                     <Sparkles size={16} /> Choose a plan
@@ -1806,8 +1844,64 @@ function App() {
                 </div>
               ) : (
                 <>
-              <KeyInput onKeySet={setApiKey} savedKey={apiKey} />
+              {/* LLM do scoring: 2 vias diretas (NVIDIA NIM + OpenCode Zen Go). O
+                  backend roteia pelo id do modelo; keys em arquivos gitignored. */}
+              <div className="card p-4 sm:p-6 mt-8">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-input bg-paper3 flex items-center justify-center shrink-0">
+                      <Cpu size={16} className="text-brass" />
+                    </div>
+                    <h2 className="text-base font-medium text-ink lowercase">llm do scoring</h2>
+                  </div>
+                  <div className="flex gap-2">
+                    {llmStatus.nvidia && <span className="badge-ok">nvidia</span>}
+                    {llmStatus.opencode && <span className="badge-ok">opencode</span>}
+                  </div>
+                </div>
+                <p className="text-xs text-muted mb-4 leading-relaxed">
+                  Duas vias diretas, sem proxy. <strong>OpenCode (Go)</strong>: sua key do
+                  console.opencode.ai (sk-...) — modelos pagos do plano. <strong>NVIDIA</strong>:
+                  key free da build.nvidia.com (nvapi-...). As keys ficam no navegador e em
+                  arquivos locais do seu disco, nunca em log, job ou git.
+                </p>
+                <div className="space-y-3">
+                  <input
+                    type="password"
+                    value={opencodeKey}
+                    onChange={(e) => setOpencodeKey(e.target.value)}
+                    className="input-field"
+                    placeholder="OpenCode oc_sk_... (modelos pagos do plano)"
+                  />
+                  <input
+                    type="password"
+                    value={nvidiaKey}
+                    onChange={(e) => setNvidiaKey(e.target.value)}
+                    className="input-field"
+                    placeholder="NVIDIA nvapi-... (free tier)"
+                  />
+                  {llmStatus.modelos.length > 0 && (
+                    <select
+                      value={llmStatus.model || ''}
+                      onChange={(e) => trocarLlmModel(e.target.value)}
+                      className="input-field"
+                    >
+                      <option value="">model: automatico (padrao do .env)</option>
+                      {llmStatus.modelos.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                  )}
+                  <button onClick={salvarLlmConfig} className="btn-quiet py-2 px-4 text-sm">Save</button>
+                  {llmErro && <p className="text-xs text-red-500 mt-2">{llmErro}</p>}
+                  <p className="text-xs text-muted leading-relaxed">
+                    Modelo ativo: <strong>{llmStatus.model || 'padrao'}</strong>. A troca vale a partir
+                    do proximo call de LLM. Sem key OpenCode, os modelos pagos nao aparecem.
+                  </p>
+                </div>
+              </div>
 
+              
               <div className="card p-4 sm:p-6 mt-8">
                 <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                   <div className="flex items-center gap-3">
@@ -1874,7 +1968,7 @@ function App() {
                   <span className="readout">BYOK</span>
                 </div>
                 <p className="text-xs text-muted mb-6 leading-relaxed">
-                  For <strong>AI Shorts &amp; dubbing</strong> — bring your own key. Translate your clips to different
+                  For <strong>AI Shorts &amp; dubbing</strong> â€” bring your own key. Translate your clips to different
                   languages using <strong>ElevenLabs</strong> AI dubbing (billed by ElevenLabs). Not covered by your plan.
                 </p>
                 <div className="space-y-4">
@@ -1932,7 +2026,7 @@ function App() {
                 </div>
                 <p className="text-xs text-muted mb-6 leading-relaxed">
                   Generate UGC-style videos with AI actors for any product or business using <strong>fal.ai</strong>.
-                  <strong> Not covered by your plan</strong> — bring your own fal.ai + ElevenLabs keys (billed by those
+                  <strong> Not covered by your plan</strong> â€” bring your own fal.ai + ElevenLabs keys (billed by those
                   providers, ~$0.65-2 per video). Your plan still covers the AI script &amp; orchestration.
                 </p>
                 <div className="space-y-4">
@@ -1993,13 +2087,13 @@ function App() {
                 {/* Header */}
                 <div className="space-y-3">
                   <p className="eyebrow flex items-center gap-2">
-                    <Bot size={12} /> 03 · AI AGENT · AUTONOMOUS SKILL
+                    <Bot size={12} /> 03 Â· AI AGENT Â· AUTONOMOUS SKILL
                   </p>
                   <h1 className="font-display lowercase text-3xl md:text-4xl text-ink">
                     Your Personal Clipping Team
                   </h1>
                   <p className="text-muted text-base md:text-lg leading-relaxed max-w-2xl">
-                    Drop your videos in a folder and a team of AI clippers picks the viral moments, edits them, and queues them for your approval — like having a 24/7 short-form editing crew on autopilot.
+                    Drop your videos in a folder and a team of AI clippers picks the viral moments, edits them, and queues them for your approval â€” like having a 24/7 short-form editing crew on autopilot.
                   </p>
                 </div>
 
@@ -2080,7 +2174,7 @@ function App() {
                   <div className="grid sm:grid-cols-2 gap-3 text-sm">
                     <div className="flex items-start gap-2 text-ink2">
                       <Check size={16} className="text-brass shrink-0 mt-0.5" />
-                      <span>Daily batch — picks one long video per run</span>
+                      <span>Daily batch â€” picks one long video per run</span>
                     </div>
                     <div className="flex items-start gap-2 text-ink2">
                       <Check size={16} className="text-brass shrink-0 mt-0.5" />
@@ -2180,11 +2274,11 @@ function App() {
             <div className="h-full overflow-y-auto custom-scrollbar animate-fade">
               <div className="min-h-full flex flex-col items-center justify-center px-4 py-5 sm:p-6">
               {/* On a phone the hero used to fill the fold on its own and push
-                  the uploader — the whole point of the screen — below it. The
+                  the uploader â€” the whole point of the screen â€” below it. The
                   eyebrow, the display size and the gaps all shrink first. */}
               <div className="max-w-xl w-full text-center space-y-5 sm:space-y-8">
                 <div className="space-y-2.5 sm:space-y-4">
-                  <p className="eyebrow hidden sm:block">01 · CLIP GENERATOR</p>
+                  <p className="eyebrow hidden sm:block">01 Â· CLIP GENERATOR</p>
                   <h1 className="font-display lowercase text-3xl sm:text-4xl md:text-5xl text-ink">
                     Create Viral Shorts
                   </h1>
@@ -2201,7 +2295,7 @@ function App() {
                       onClick={(e) => { if (!billingEnabled) { e.preventDefault(); goToTab('settings'); } }}
                       className="text-ink2 underline underline-offset-2 hover:text-brass transition-colors"
                     >
-                      connect Claude, ChatGPT or n8n →
+                      connect Claude, ChatGPT or n8n â†’
                     </a>
                   </p>
                   )}
@@ -2246,7 +2340,7 @@ function App() {
                     className="mb-4 w-full text-left rounded-card border border-brass/40 bg-brass/5 px-4 py-3 text-sm hover:border-brass transition-colors"
                   >
                     <span className="text-ink">Clipping the first {partialJob.processed_minutes} of {partialJob.total_minutes} minutes with your free minutes.</span>{' '}
-                    <span className="text-brass font-medium">Clip the whole video →</span>
+                    <span className="text-brass font-medium">Clip the whole video â†’</span>
                   </button>
                 )}
 
@@ -2256,8 +2350,8 @@ function App() {
                   <div className="mb-4 rounded-card border border-brass/40 bg-brass/5 px-4 py-3 text-sm">
                     <p className="text-ink">
                       {queueInfo.ahead === 0
-                        ? 'You are next in line. Starting in a moment…'
-                        : <>You are <b>#{queueInfo.position}</b> in line · {queueInfo.eta_is_minimum ? 'at least' : 'about'} <b>{Math.max(1, Math.round(queueInfo.eta_seconds / 60))} min</b></>}
+                        ? 'You are next in line. Starting in a momentâ€¦'
+                        : <>You are <b>#{queueInfo.position}</b> in line Â· {queueInfo.eta_is_minimum ? 'at least' : 'about'} <b>{Math.max(1, Math.round(queueInfo.eta_seconds / 60))} min</b></>}
                     </p>
                     {queueSlow ? (
                       /* The free queue is saturated and this video is far
@@ -2287,7 +2381,7 @@ function App() {
                         onClick={() => { track('QueueUpsellClick', { props: { position: String(queueInfo.position) } }); if (isManaged) openUpsell({ source: 'queue' }); else setShowPlanChoice(true); }}
                         className="mt-2 text-xs lowercase text-brass hover:underline"
                       >
-                        paid plans skip the line →
+                        paid plans skip the line â†’
                       </button>
                     )}
                   </div>
@@ -2312,7 +2406,7 @@ function App() {
                   <div className="sm:hidden mb-3 flex items-start gap-2 text-xs text-ink2 min-w-0">
                     <Loader2 size={14} className="animate-spin text-brass shrink-0 mt-px" />
                     <span className="min-w-0 leading-snug break-words">
-                      {logs.length ? logs[logs.length - 1] : 'starting up…'}
+                      {logs.length ? logs[logs.length - 1] : 'starting upâ€¦'}
                     </span>
                   </div>
                 )}
@@ -2376,7 +2470,7 @@ function App() {
                     )}
                     {results?.cost_analysis && !isManaged && (
                       <span className="readout bg-paper3 px-2.5 py-1 rounded-full" title={`Input: ${results.cost_analysis.input_tokens} | Output: ${results.cost_analysis.output_tokens}`}>
-                        GEMINI · ${results.cost_analysis.total_cost.toFixed(5)}
+                        GEMINI Â· ${results.cost_analysis.total_cost.toFixed(5)}
                       </span>
                     )}
                   </h2>
@@ -2389,7 +2483,7 @@ function App() {
                         title="Download all clips as a ZIP"
                       >
                         {downloadingAll
-                          ? <><Loader2 size={14} className="animate-spin" />zipping…</>
+                          ? <><Loader2 size={14} className="animate-spin" />zippingâ€¦</>
                           : <><Download size={14} />download all</>}
                       </button>
                       {results.clips.length > 1 && (
@@ -2415,10 +2509,10 @@ function App() {
                         className="w-full text-left px-3 py-2.5 rounded-input bg-paper3 border border-brass/40 hover:border-brass text-sm transition-colors"
                       >
                         <span className="text-ink">These clips come from the first {partialJob.processed_minutes} of {partialJob.total_minutes} minutes.</span>{' '}
-                        <span className="text-brass font-medium">Clip the whole video →</span>
+                        <span className="text-brass font-medium">Clip the whole video â†’</span>
                       </button>
                     )}
-                    {/* Peak-moment upsell: they just SAW their clips — sell while
+                    {/* Peak-moment upsell: they just SAW their clips â€” sell while
                         they're proud of the result, before asking for stars. */}
                     {firstVideoJob && !partialJob && (
                       <button
@@ -2427,7 +2521,7 @@ function App() {
                       >
                         <span className="text-ink">Your first video is on us: we clipped all of it.</span>{' '}
                         <span className="text-muted">That used this month's free minutes.</span>{' '}
-                        <span className="text-brass font-medium">Keep clipping →</span>
+                        <span className="text-brass font-medium">Keep clipping â†’</span>
                       </button>
                     )}
                     {plan === 'free' && (!partialJob || partialJob.chosen) && !firstVideoJob && (
@@ -2437,7 +2531,7 @@ function App() {
                       >
                         <span className="text-ink">Like these clips?</span>{' '}
                         <span className="text-muted">Upgrade and these exact clips lose the watermark on the spot, and stay for good.</span>{' '}
-                        <span className="text-brass font-medium">Remove the watermark →</span>
+                        <span className="text-brass font-medium">Remove the watermark â†’</span>
                       </button>
                     )}
                     {showAutopilotNudge && (
@@ -2463,7 +2557,7 @@ function App() {
                           onClick={() => { dismissAutopilotNudge('AutopilotNudgeClicked'); setActiveTab('autopilot'); }}
                           className="btn-quiet shrink-0 text-xs py-1.5 px-3 lowercase w-full sm:w-auto"
                         >
-                          set up autopilot →
+                          set up autopilot â†’
                         </button>
                         <button
                           onClick={() => dismissAutopilotNudge('AutopilotNudgeDismissed')}
@@ -2482,7 +2576,7 @@ function App() {
                         <div className="flex items-start gap-3 flex-1 min-w-0">
                           <div className="min-w-0 leading-relaxed">
                             <span className="text-ink">Publish these clips straight from here.</span>{' '}
-                            <span className="text-muted">Connect your YouTube, TikTok or Instagram once — after that every clip is one click from posted.</span>
+                            <span className="text-muted">Connect your YouTube, TikTok or Instagram once â€” after that every clip is one click from posted.</span>
                           </div>
                           {/* On a phone the dismiss X rides the copy, so the CTA
                               below can run the full width of the card. */}
@@ -2502,7 +2596,7 @@ function App() {
                           onClick={() => { track('SocialNudgeConnect'); handleConnectSocials(); }}
                           className="btn-quiet shrink-0 text-xs py-1.5 px-3 lowercase w-full sm:w-auto"
                         >
-                          connect socials →
+                          connect socials â†’
                         </button>
                         <button
                           onClick={() => {
@@ -2592,11 +2686,7 @@ function App() {
         isOpen={showKeyModal}
         onClose={() => setShowKeyModal(false)}
         eyebrow="SETUP"
-        title={!geminiOk && !uploadPostKey
-          ? 'Required API Keys Missing'
-          : !geminiOk
-            ? 'Gemini API Key Required'
-            : 'Upload-Post API Key Required'}
+        title="Gemini API Key Required"
         footer={
           <div className="flex gap-3">
             <button
@@ -2623,7 +2713,7 @@ function App() {
           <div className={`rounded-input p-4 space-y-2 border ${!apiKey ? 'border-rule2' : 'border-rule opacity-70'}`}>
             <p className="text-xs font-medium text-ink flex items-center gap-2">
               {apiKey ? <Check size={12} className="text-ok" /> : <AlertTriangle size={12} className="text-warn" />}
-              Gemini API Key {apiKey && <span className="text-ok">— set</span>}
+              Gemini API Key {apiKey && <span className="text-ok">â€” set</span>}
             </p>
             {!apiKey && (
               <>
@@ -2651,7 +2741,7 @@ function App() {
           <div className={`rounded-input p-4 space-y-2 border ${!uploadPostKey ? 'border-rule2' : 'border-rule opacity-70'}`}>
             <p className="text-xs font-medium text-ink flex items-center gap-2">
               {uploadPostKey ? <Check size={12} className="text-ok" /> : <AlertTriangle size={12} className="text-warn" />}
-              Upload-Post API Key {uploadPostKey && <span className="text-ok">— set</span>}
+              Upload-Post API Key {uploadPostKey && <span className="text-ok">â€” set</span>}
             </p>
             {!uploadPostKey && (
               <>
@@ -2700,7 +2790,7 @@ function App() {
             </p>
             {qualityGate.info.cookies_invalid && (
               <p className="text-xs text-muted">
-                Your YouTube cookies look expired — refreshing them (export again from an incognito window) often unlocks HD.
+                Your YouTube cookies look expired â€” refreshing them (export again from an incognito window) often unlocks HD.
               </p>
             )}
             <div className="flex gap-2 justify-end pt-2">

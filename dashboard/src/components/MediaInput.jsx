@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Link2, Upload, FileVideo, X, Info, Loader2, ChevronDown } from 'lucide-react';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import { getApiUrl } from '../config';
 import SourceCost from './SourceCost';
 
@@ -43,7 +43,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
     const [range, setRange] = useState(null);
     const [outputFormat, setOutputFormat] = useState('vertical'); // vertical | horizontal | square
     const [showInfo, setShowInfo] = useState(false);
-    // Advanced generation controls — empty string means "let the AI decide",
+    // Advanced generation controls â€” empty string means "let the AI decide",
     // which keeps the default pipeline behavior untouched.
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [targetClips, setTargetClips] = useState('');
@@ -103,7 +103,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
     }, []);
 
     // A link pasted in the landing hero: preload it here so the user picks up
-    // where they left off. Not auto-submitted — the rights attestation below
+    // where they left off. Not auto-submitted â€” the rights attestation below
     // has to be ticked by the user.
     useEffect(() => {
         let pending = null;
@@ -209,7 +209,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                             ))}
                                         </div>
                                         <p className="text-xs text-muted mt-2.5 leading-relaxed">
-                                            …and 1,000+ more sites. If a link has a public video, we can usually fetch it.
+                                            â€¦and 1,000+ more sites. If a link has a public video, we can usually fetch it.
                                         </p>
                                     </div>
                                 )}
@@ -253,7 +253,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                                 />
                                 <Upload className="mx-auto mb-3 text-muted" size={18} />
                                 <p className="text-ink2 lowercase">Click to upload or drag and drop</p>
-                                <p className="readout mt-2">MP4, MOV up to 500MB · at least {MIN_SOURCE_SECONDS}s long</p>
+                                <p className="readout mt-2">MP4, MOV up to 500MB Â· at least {MIN_SOURCE_SECONDS}s long</p>
                             </label>
                         )}
                     </div>
@@ -272,9 +272,9 @@ export default function MediaInput({ onProcess, isProcessing }) {
                     <p className="eyebrow mb-2">Output format</p>
                     <div className="grid grid-cols-3 gap-2">
                         {[
-                            { value: 'vertical', label: '9:16', hint: 'Shorts · Reels · TikTok', w: 18, h: 32 },
+                            { value: 'vertical', label: '9:16', hint: 'Shorts Â· Reels Â· TikTok', w: 18, h: 32 },
                             { value: 'square', label: '1:1', hint: 'Feed posts', w: 28, h: 28 },
-                            { value: 'horizontal', label: '16:9', hint: 'Keep landscape · YouTube', w: 36, h: 20 },
+                            { value: 'horizontal', label: '16:9', hint: 'Keep landscape Â· YouTube', w: 36, h: 20 },
                         ].map((f) => {
                             const active = outputFormat === f.value;
                             return (
@@ -303,7 +303,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                     </div>
                 </div>
 
-                {/* Advanced generation controls — collapsed by default; blank = AI decides */}
+                {/* Advanced generation controls â€” collapsed by default; blank = AI decides */}
                 <div className="mt-4">
                     <button
                         type="button"
@@ -313,7 +313,7 @@ export default function MediaInput({ onProcess, isProcessing }) {
                         <ChevronDown size={14} className={`transition-transform ${showAdvanced ? 'rotate-180' : ''}`} />
                         advanced options
                         {(targetClips || clipMinSeconds || clipMaxSeconds || !autoHook) && (
-                            <span className="text-brass">·</span>
+                            <span className="text-brass">Â·</span>
                         )}
                     </button>
                     {showAdvanced && (

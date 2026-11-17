@@ -339,7 +339,8 @@ class SpeakerTracker:
             current_candidates.append({
                 'id': best_match_id,
                 'box': face['box'],
-                'score': face['score']
+                'score': face['score'],
+                'focus': face.get('focus', False),
             })
 
         # 2. Update Scores with decay
@@ -353,6 +354,11 @@ class SpeakerTracker:
             pid = cand['id']
             # Score is purely based on size (proximity) now that we don't have mouth
             raw_score = cand['score'] / (width * width * 0.05)
+            # A user-marked presenter region outranks the size contest: a
+            # webcam overlay is usually the smallest face on screen, so the
+            # area score alone would hand the camera to the gameplay.
+            if cand.get('focus'):
+                raw_score *= FOCUS_BOOST
             self.speaker_scores[pid] = self.speaker_scores.get(pid, 0) + raw_score
 
         # 3. Determine Best Speaker
@@ -422,6 +428,74 @@ DETECT_LOCK = threading.Lock()
 DETECT_STRIDE = max(int(os.environ.get("DETECT_STRIDE", "4")), 1)
 # YOLO fallback (no face found) is far heavier than MediaPipe — extra throttle.
 YOLO_FALLBACK_STRIDE = DETECT_STRIDE * 2
+
+# User-marked presenter region (channel preset). FOCUS_X is the strip's centre
+# as a fraction of the source width; FOCUS_WF its width fraction. The strip is
+# template-matched on every detection frame, so the marked camera wins the
+# tracker while it is on screen AND follows it if the streamer moves it
+# mid-VOD; when it disappears the match drops and the automatic detectors
+# take over again.
+FOCUS_X = None
+FOCUS_WF = 0.22
+FOCUS_BOOST = float(os.environ.get("FOCUS_BOOST", "10"))
+_raw_focus_x = os.environ.get("FOCUS_X")
+if _raw_focus_x:
+    try:
+        FOCUS_X = max(0.0, min(1.0, float(_raw_focus_x)))
+        FOCUS_WF = max(0.05, min(0.9, float(os.environ.get("FOCUS_WF", str(FOCUS_WF)))))
+    except ValueError:
+        FOCUS_X = None
+FOCUS_TEMPLATE = None
+FOCUS_MATCH_MIN = 0.45
+FOCUS_INIT_LOCK = threading.Lock()
+
+
+def detect_focus_candidate(frame):
+    """Candidate from the user-marked presenter region (channel preset).
+
+    The first detection frame cuts the marked strip as a template; every later
+    call template-matches it (TM_CCOEFF_NORMED on the downscaled copy) and
+    returns the best position. Returns a candidate like detect_face_candidates
+    (box in ORIGINAL frame coordinates, tagged 'focus'), or None when the
+    strip is not confidently present — the caller then falls back to the
+    automatic detectors.
+    """
+    global FOCUS_TEMPLATE
+    if FOCUS_X is None:
+        return None
+    small, scale = _detection_frame(frame)
+    h, w = small.shape[:2]
+    gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
+    with FOCUS_INIT_LOCK:
+        if FOCUS_TEMPLATE is None:
+            tw = max(int(w * FOCUS_WF), 8)
+            tx = int(FOCUS_X * w) - tw // 2
+            if tx < 0 or tx + tw > w:
+                tx = max(0, min(tx, w - tw))
+            FOCUS_TEMPLATE = gray[:, tx:tx + tw].copy().astype(np.float32)
+        tpl = FOCUS_TEMPLATE
+    tpl_u8 = tpl.astype(np.uint8)
+    th, tw = tpl_u8.shape[:2]
+    if th > h or tw > w:
+        return None
+    try:
+        res = cv2.matchTemplate(gray, tpl_u8, cv2.TM_CCOEFF_NORMED)
+    except cv2.error:
+        return None
+    _mn, mx_val, _mnl, mx_loc = cv2.minMaxLoc(res)
+    if mx_val < FOCUS_MATCH_MIN:
+        return None
+    # Slow EMA: the template follows the camera (streamer moved the overlay
+    # mid-VOD) without snapping to a lookalike region in one frame.
+    strip = gray[:, mx_loc[0]:mx_loc[0] + tw].astype(np.float32)
+    with FOCUS_INIT_LOCK:
+        FOCUS_TEMPLATE = FOCUS_TEMPLATE * 0.92 + strip * 0.08
+    mx = mx_loc[0]
+    return {
+        'box': [int(mx / scale), 0, int(tw / scale), int(h / scale)],
+        'score': 1.0,
+        'focus': True,
+    }
 
 
 def _detection_frame(frame):

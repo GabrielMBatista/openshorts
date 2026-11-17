@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Rocket, Youtube, Twitch, Loader2, RefreshCw, Play, CheckCircle2, AlertTriangle,
   Clock, Scissors, Send, ExternalLink, FolderOpen, Lock,
 } from 'lucide-react';
 import { apiJson, openQuotaWall } from '../lib/api';
 import { PLATFORM_VALUES, platformLabel } from '../lib/socialPlatforms';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import { connectNotice } from '../lib/connectReturn';
 
 // Autopilot: every new video on the user's connected YouTube channel is turned
@@ -28,7 +28,7 @@ const ERROR_TEXT = {
 
 const REASON_TEXT = {
   youtube_short: 'already a short',
-  private_video: 'private on YouTube — set it to Unlisted to clip it',
+  private_video: 'private on YouTube â€” set it to Unlisted to clip it',
   out_of_minutes: 'out of minutes',
   too_short: 'too short to clip',
   unavailable: 'not available yet (private or processing)',
@@ -80,7 +80,7 @@ function StatusBadge({ run }) {
     return (
       <span className="badge-ok inline-flex items-center gap-1">
         <CheckCircle2 size={11} /> {run.clips_count || 0} clips
-        {run.posted_count ? ` · ${run.posted_count} scheduled` : ''}
+        {run.posted_count ? ` Â· ${run.posted_count} scheduled` : ''}
       </span>
     );
   }
@@ -201,7 +201,7 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
         body: JSON.stringify({ video_id: video.id }),
       });
       track('AutopilotManualRun', { props: { status: r.status } });
-      if (r.status === 'processing') setListNotice(`Clipping “${video.title || 'your video'}”. We will email you when the clips are ready.`);
+      if (r.status === 'processing') setListNotice(`Clipping â€œ${video.title || 'your video'}â€. We will email you when the clips are ready.`);
       else setListNotice(`Not clipped: ${REASON_TEXT[r.reason] || r.reason || r.status}.`);
     } catch (e) {
       if (e?.name === 'QuotaError') {
@@ -238,7 +238,7 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
 
   return (
     <div className="max-w-4xl mx-auto animate-fade">
-      <p className="eyebrow mb-1.5">02 · AUTOPILOT</p>
+      <p className="eyebrow mb-1.5">02 Â· AUTOPILOT</p>
       <h1 className="font-display lowercase text-3xl text-ink mb-2">your channel, clipped on its own</h1>
       <p className="text-muted text-sm mb-8 max-w-2xl">
         Publish on YouTube as usual. Autopilot notices every new video, turns it into shorts
@@ -267,7 +267,7 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
         </div>
       )}
 
-      {/* 1 · channel */}
+      {/* 1 Â· channel */}
       <div className="card p-6 mb-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
@@ -275,7 +275,7 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
               <Youtube size={18} className={yt ? 'text-brass' : 'text-muted'} />
             </div>
             <div className="min-w-0">
-              <p className="eyebrow">01 · CHANNEL</p>
+              <p className="eyebrow">01 Â· CHANNEL</p>
               {yt ? (
                 <p className="text-ink truncate">{yt.display_name || yt.handle} <span className="readout ml-1">{yt.handle}</span></p>
               ) : (
@@ -323,18 +323,18 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
         )}
       </div>
 
-      {/* 2 · switch */}
+      {/* 2 Â· switch */}
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="eyebrow mb-1">02 · AUTOPILOT</p>
+            <p className="eyebrow mb-1">02 Â· AUTOPILOT</p>
             <p className="text-ink">{s.enabled ? 'on: new videos are clipped automatically' : 'off'}</p>
             <p className="text-muted text-sm mt-1">
               Only videos you publish from now on. Up to {limits.daily_auto || 1} video a day, the first
               {' '}{s.max_minutes || 30} minutes of each. Shorts are skipped.
             </p>
             {s.enabled && s.last_checked_at && (
-              <p className="readout mt-2 flex items-center gap-1"><Clock size={11} /> last check {fmtDate(s.last_checked_at)} · every hour</p>
+              <p className="readout mt-2 flex items-center gap-1"><Clock size={11} /> last check {fmtDate(s.last_checked_at)} Â· every hour</p>
             )}
           </div>
           <Switch
@@ -364,11 +364,11 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
         </div>
       </div>
 
-      {/* 3 · autopublish */}
+      {/* 3 Â· autopublish */}
       <div className="card p-6 mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="eyebrow mb-1">03 · AUTOPUBLISH</p>
+            <p className="eyebrow mb-1">03 Â· AUTOPUBLISH</p>
             <p className="text-ink">{s.autopublish ? 'the best clips are scheduled for you' : 'off: you review and post the clips yourself'}</p>
             <p className="text-muted text-sm mt-1">
               Picks the {s.clips_to_publish || 3} highest-scoring clips of each video and schedules
@@ -447,12 +447,12 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
         )}
       </div>
 
-      {/* 4 · channel videos */}
+      {/* 4 Â· channel videos */}
       {(yt || tw) && (
         <div className="card p-6 mb-6">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
-              <p className="eyebrow mb-1">04 · YOUR LATEST VIDEOS</p>
+              <p className="eyebrow mb-1">04 Â· YOUR LATEST VIDEOS</p>
               <p className="text-muted text-sm">Clip any of them now, or let Autopilot handle the next one.</p>
             </div>
             <button onClick={load} className="btn-quiet text-xs" aria-label="refresh"><RefreshCw size={13} /> refresh</button>
@@ -505,10 +505,10 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
         </div>
       )}
 
-      {/* 5 · activity */}
+      {/* 5 Â· activity */}
       {runs.length > 0 && (
         <div className="card p-6 mb-10">
-          <p className="eyebrow mb-4">05 · ACTIVITY</p>
+          <p className="eyebrow mb-4">05 Â· ACTIVITY</p>
           <div className="space-y-3">
             {runs.map((r) => (
               <div key={r.id} className="flex items-center gap-3 text-sm">
@@ -518,7 +518,7 @@ export default function AutopilotTab({ onOpenProject, onUpgrade, justConnected }
                       : <AlertTriangle size={15} className="text-danger shrink-0" />}
                 <span className="text-ink2 truncate flex-1">{r.video_title || r.video_id}</span>
                 {r.posted_count ? <span className="readout hidden sm:inline-flex items-center gap-1"><Send size={11} /> {r.posted_count} scheduled</span> : null}
-                <span className="readout shrink-0">{r.trigger === 'manual' ? 'manual' : 'auto'} · {fmtDate(r.created_at)}</span>
+                <span className="readout shrink-0">{r.trigger === 'manual' ? 'manual' : 'auto'} Â· {fmtDate(r.created_at)}</span>
               </div>
             ))}
           </div>

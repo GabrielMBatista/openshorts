@@ -1,7 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { Loader2, Star } from 'lucide-react';
 import { apiJson } from '../lib/api';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import Modal from './ui/Modal';
 
 // Mirrors cloud/cancellation.CANCEL_REASONS. A closed list so churn can be
@@ -185,7 +185,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
   }
 
   return (
-    <Modal isOpen onClose={busy ? undefined : keep} eyebrow={`CANCEL PLAN · ${step + 1}/3`}
+    <Modal isOpen onClose={busy ? undefined : keep} eyebrow={`CANCEL PLAN Â· ${step + 1}/3`}
            title={['Why are you cancelling?', 'How was OpenShorts?',
                    offer || pause ? 'Before you go' : 'Confirm cancellation'][step]}>
       {step === 0 && (
@@ -230,7 +230,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
           <label className="block">
             <span className="text-sm text-muted">Your review</span>
             <textarea value={review} onChange={(e) => setReview(e.target.value)} maxLength={2000} rows={4}
-                      placeholder="What worked, what didn't, who you'd recommend it to…"
+                      placeholder="What worked, what didn't, who you'd recommend it toâ€¦"
                       className="input-field w-full text-sm mt-1" />
           </label>
           {review.trim() && (
@@ -288,7 +288,7 @@ export default function CancelPlanModal({ plan, periodEnd, onClose, onCanceled }
             </button>
             <button onClick={submit} disabled={busy} className="btn-danger px-4 py-2">
               {busy && <Loader2 size={16} className="animate-spin" />}
-              {busy ? 'Cancelling…' : 'Cancel subscription'}
+              {busy ? 'Cancellingâ€¦' : 'Cancel subscription'}
             </button>
           </div>
         </div>

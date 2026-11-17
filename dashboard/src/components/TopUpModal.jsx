@@ -1,31 +1,31 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Loader2, Check, Zap, Clock } from 'lucide-react';
 import { apiJson } from '../lib/api';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import { useBackFromStripe } from '../lib/backFromStripe';
 import Modal from './ui/Modal';
 
 // Opens when a job hits a 402 (quota exceeded). This is the highest-intent
-// moment in the product — the user WANTS to clip a video and can't — so it
+// moment in the product â€” the user WANTS to clip a video and can't â€” so it
 // sells the subscription first (recurring value: minutes, no watermark,
 // permanent clips) and keeps one-time top-ups as a secondary escape hatch.
 //
-// Conversion techniques used (all honest — no fake scarcity or countdowns):
+// Conversion techniques used (all honest â€” no fake scarcity or countdowns):
 // - Goal-gradient: copy centers on finishing THIS video, not abstract quota.
 // - Compromise effect: all three tiers shown, creator highlighted in the
-//   middle — starter floors the price, pro anchors it, creator reads as the
+//   middle â€” starter floors the price, pro anchors it, creator reads as the
 //   sensible pick (and matches the pricing page's "most popular").
 // - Outcome framing: every line says what the user GETS (clips ready to post,
 //   a library that stays), with the free-plan fact stated second. The earlier
 //   copy led with what free costs them, which reads as "pay to undo the
-//   restrictions we added" — the losing side of an argument against our own
+//   restrictions we added" â€” the losing side of an argument against our own
 //   MIT repo, whose headline is literally "no watermarks, no limits".
 // - Risk reversal: "cancel anytime" on the CTA.
 //
 // Deliberately NOT sold here: GPU rendering and the included Gemini key. Both
 // are real and both are why the cloud beats self-hosting, but the free plan
 // already gets them (the pricing page says "Same GPU rendering" on the free
-// tier) — so they belong on the landing/pricing surface facing repo visitors,
+// tier) â€” so they belong on the landing/pricing surface facing repo visitors,
 // not in a modal shown to someone who is already using them.
 const PLAN_BLURBS = {
   starter: 'for getting started',
@@ -35,7 +35,7 @@ const PLAN_BLURBS = {
 
 // context: 'wall' (default) = user hit the 402 quota wall mid-task.
 //          'upsell' = user opened it voluntarily (results banner, header meter)
-//          — different framing: they still HAVE minutes, sell the watermark
+//          â€” different framing: they still HAVE minutes, sell the watermark
 //          removal + permanence instead of "you ran out".
 // partialMinutes / onPartial: the server's offer to clip only the first N
 // minutes of the blocked video on the minutes the user has (see
@@ -90,10 +90,10 @@ export default function TopUpModal({ onClose, required, remaining, partialMinute
 
   // Instrumented in three steps on purpose. Between 25-jul and 1-ago the modals
   // logged 35 checkout clicks and Stripe recorded ONE new subscription, and
-  // nothing in between was measured — this modal fired only its own
+  // nothing in between was measured â€” this modal fired only its own
   // *ModalCheckout event, so "clicked but never reached Stripe" and "reached
   // Stripe and abandoned" were indistinguishable. CheckoutStarted (click, same
-  // meaning as PricingSection's) → CheckoutRedirected (we hold a Stripe URL) →
+  // meaning as PricingSection's) â†’ CheckoutRedirected (we hold a Stripe URL) â†’
   // CheckoutFailed (we don't) separates them.
 
   const buy = async (entry, kind) => {
@@ -103,7 +103,7 @@ export default function TopUpModal({ onClose, required, remaining, partialMinute
     track('CheckoutStarted', { props });
     // Same stash PricingSection sets, so a plan bought from the modal also
     // carries its price into the Subscribed goal (AccountPage reads it back).
-    // Top-ups deliberately don't set it — they never count as a subscription.
+    // Top-ups deliberately don't set it â€” they never count as a subscription.
     if (kind === 'subscription') {
       try {
         localStorage.setItem('os_pending_checkout', JSON.stringify({
@@ -214,7 +214,7 @@ export default function TopUpModal({ onClose, required, remaining, partialMinute
               <ul className="space-y-1.5 text-sm text-ink2 mb-4 flex-1">
                 <li className="flex items-start gap-2">
                   <Check size={15} className="text-ok shrink-0 mt-0.5" />
-                  <span><b>{entry.minutes} min</b> every month ({Math.round(entry.minutes / 20)}× your free quota)</span>
+                  <span><b>{entry.minutes} min</b> every month ({Math.round(entry.minutes / 20)}Ã— your free quota)</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <Check size={15} className="text-ok shrink-0 mt-0.5" />
@@ -261,7 +261,7 @@ export default function TopUpModal({ onClose, required, remaining, partialMinute
                 <div className="text-ink text-sm font-medium flex items-center gap-1.5">
                   <Clock size={14} className="text-muted" />+{t.minutes} min
                 </div>
-                <div className="readout mt-0.5">{fmt(t.amount, t.currency)} · one-time</div>
+                <div className="readout mt-0.5">{fmt(t.amount, t.currency)} Â· one-time</div>
               </button>
             ))}
             {topups.length === 0 && (

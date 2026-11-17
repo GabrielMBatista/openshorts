@@ -49,7 +49,44 @@ def base_url() -> str:
 
 
 def model_name() -> str:
-    return (os.environ.get("LLM_MODEL") or "").strip() or DEFAULT_MODEL
+    # o seletor do front grava .llm-model (o modelo ativo vence o .env)
+    override = _file(".llm-model")
+    return override or (os.environ.get("LLM_MODEL") or "").strip() or DEFAULT_MODEL
+
+
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def _file(nome: str) -> Optional[str]:
+    """Lê um arquivo de config ao lado do app.py (key/model escritos pelo dashboard)."""
+    try:
+        with open(os.path.join(_APP_DIR, nome), encoding="utf8") as f:
+            v = f.read().strip()
+            return v or None
+    except OSError:
+        return None
+
+
+def resolve(model: Optional[str] = None) -> Tuple[str, str, str]:
+    """Resolve (base_url, api_key, model) para um id de modelo.
+
+    Roteamento pelo id, sem proxy: ids com ``/`` sao NVIDIA NIM (key nvapi-);
+    ids simples sao o gateway OpenCode Go (zen/go, key sk-, modelos pagos);
+    sem arquivo de key, cai no LLM_BASE_URL/LLM_API_KEY do .env.
+    """
+    m = model or model_name()
+    if "/" in m:
+        base = "https://integrate.api.nvidia.com/v1"
+        key = _file(".nvidia-key") or (os.environ.get("LLM_API_KEY") or "").strip() or "ollama"
+        if not key.startswith("nvapi-"):
+            key = (os.environ.get("LLM_API_KEY") or "").strip() or "ollama"
+        return base, key, m
+    zen_key = _file(".opencode-key")
+    if zen_key and (zen_key.startswith("sk-") or zen_key.startswith("oc_sk_")):
+        # Console Inference (chat completions family): modelos pagos/Go.
+        # Free models so respondem de dentro do OpenCode (403 externo, doc oficial).
+        return "https://opencode.ai/inference/openai/v1", zen_key, m
+    return base_url(), (os.environ.get("LLM_API_KEY") or "ollama").strip(), m
 
 
 def active() -> bool:
@@ -61,7 +98,8 @@ def describe() -> Optional[dict]:
     """What ``/api/config`` tells the dashboard, or ``None`` when inactive."""
     if not active():
         return None
-    return {"provider": "openai", "model": model_name(), "baseUrl": base_url()}
+    base, _key, model = resolve()
+    return {"provider": "openai", "model": model, "baseUrl": base}
 
 
 def _timeout() -> float:
@@ -75,7 +113,13 @@ def _headers() -> dict:
     # Ollama ignores the key but the OpenAI client convention (and vLLM with
     # --api-key) wants the header present; "ollama" is the documented placeholder.
     key = (os.environ.get("LLM_API_KEY") or "ollama").strip()
-    return {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    h = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    # OpenCode Go exige identificar a sessão (prompt caching / anti-abuso)
+    if "opencode.ai/inference" in base_url():
+        h["x-opencode-session"] = (os.environ.get("LLM_SESSION_ID") or "chatpeak-openshorts").strip()
+        if os.environ.get("LLM_USER_AGENT"):
+            h["User-Agent"] = os.environ["LLM_USER_AGENT"].strip()
+    return h
 
 
 def _client(**kwargs) -> httpx.Client:
@@ -110,19 +154,22 @@ def generate_json(prompt: str, schema: Type[BaseModel], model: Optional[str] = N
     """
     import gemini_worker  # local import: keeps this module free of the google SDK
 
-    url = f"{base_url()}/chat/completions"
-    model = model or model_name()
+    url, key, model = resolve(model)
+    url = f"{url}/chat/completions"
     messages = [
         {"role": "system", "content": "You answer with a single JSON object and nothing else."},
         {"role": "user", "content": prompt},
     ]
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+    if "opencode.ai" in url:
+        headers["x-opencode-session"] = (os.environ.get("LLM_SESSION_ID") or "chatpeak-openshorts").strip()
     last_rejection: Optional[str] = None
     with _client() as client:
         for fmt in _response_formats(schema):
             body = {"model": model, "messages": messages, "temperature": 0.2, "stream": False}
             if fmt is not None:
                 body["response_format"] = fmt
-            resp = client.post(url, json=body, headers=_headers())
+            resp = client.post(url, json=body, headers=headers)
             if fmt is not None and _is_format_rejection(resp):
                 # The server does not know this response_format flavour; the
                 # next loop iteration asks for a looser one.

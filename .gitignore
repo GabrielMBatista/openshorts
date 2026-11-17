@@ -52,3 +52,9 @@ CLAUDE.local.md
 
 # Rust build output
 osrender/target/
+
+# chaves locais (nunca commitar)
+.nvidia-key
+.llm-prefer
+.opencode-key
+.llm-model

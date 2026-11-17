@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Check, Loader2, Zap, Cpu, KeyRound, Send, HardDrive, Bot, Repeat } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { apiJson } from '../lib/api';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import { stashPendingPlan, readPendingPlan, clearPendingPlan } from '../lib/pendingPlan';
 import { useBackFromStripe } from '../lib/backFromStripe';
 import SegmentedControl from './ui/SegmentedControl';
@@ -139,7 +139,7 @@ export default function PricingSection({ onRequireLogin }) {
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Free tier — no card, Google sign-in only */}
+        {/* Free tier â€” no card, Google sign-in only */}
         <div className="relative card p-6 flex flex-col">
           <h3 className="font-display lowercase text-xl text-ink">free</h3>
           <p className="text-muted text-sm mb-4 lowercase">Try it on your own videos</p>
@@ -152,8 +152,8 @@ export default function PricingSection({ onRequireLogin }) {
             <li className="flex items-start gap-2"><Check size={16} className="text-ok shrink-0 mt-0.5" /> <span>YouTube URL or upload</span></li>
             <li className="flex items-start gap-2"><Cpu size={16} className="text-ok shrink-0 mt-0.5" /> <span>Same <b>GPU rendering</b>, about 50s per 8-min video</span></li>
             <li className="flex items-start gap-2"><KeyRound size={16} className="text-ok shrink-0 mt-0.5" /> <span>Gemini key included, no setup</span></li>
-            <li className="flex items-start gap-2"><Check size={16} className="text-ok shrink-0 mt-0.5" /> <span>No credit card — Google sign-in</span></li>
-            <li className="flex items-start gap-2"><Check size={16} className="text-muted shrink-0 mt-0.5" /> <span className="text-muted">Watermark · clips kept 7 days</span></li>
+            <li className="flex items-start gap-2"><Check size={16} className="text-ok shrink-0 mt-0.5" /> <span>No credit card â€” Google sign-in</span></li>
+            <li className="flex items-start gap-2"><Check size={16} className="text-muted shrink-0 mt-0.5" /> <span className="text-muted">Watermark Â· clips kept 7 days</span></li>
             <li className="flex items-start gap-2"><Check size={16} className="text-muted shrink-0 mt-0.5" /> <span className="text-muted">Download only: no auto-posting or Autopilot</span></li>
           </ul>
           <button
@@ -258,10 +258,10 @@ export default function PricingSection({ onRequireLogin }) {
           </div>
           <p className="text-sm text-muted mb-3 leading-relaxed">
             <b className="text-ink2">AI Shorts</b> (AI-actor UGC videos) and <b className="text-ink2">voice dubbing</b> use premium generation from
-            <b className="text-ink2"> fal.ai</b> and <b className="text-ink2">ElevenLabs</b>. Connect your own keys for those — you're billed by those
+            <b className="text-ink2"> fal.ai</b> and <b className="text-ink2">ElevenLabs</b>. Connect your own keys for those â€” you're billed by those
             providers directly (typically ~$0.65-2 per video). Your plan still covers the script &amp; orchestration.
           </p>
-          <p className="text-xs text-muted">Managed credits for these are coming later — no keys needed.</p>
+          <p className="text-xs text-muted">Managed credits for these are coming later â€” no keys needed.</p>
         </div>
       </div>
 

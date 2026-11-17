@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { Check, Loader2, Zap, ArrowRight } from 'lucide-react';
 import { apiJson } from '../lib/api';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import { useBackFromStripe } from '../lib/backFromStripe';
 import Modal from './ui/Modal';
 
@@ -54,7 +54,7 @@ export default function PlanChoiceModal({ onClose }) {
   };
 
   const startFree = () => {
-    // A signed-in user with a valid account is already on Free — just start.
+    // A signed-in user with a valid account is already on Free â€” just start.
     onClose();
   };
 
@@ -64,7 +64,7 @@ export default function PlanChoiceModal({ onClose }) {
         <div className="flex justify-center py-10"><Loader2 className="animate-spin text-brass" /></div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
-          {/* Free — the default */}
+          {/* Free â€” the default */}
           <div className="card p-5 flex flex-col border-brass">
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-display lowercase text-lg text-ink">free</h3>
@@ -74,21 +74,21 @@ export default function PlanChoiceModal({ onClose }) {
             <ul className="space-y-1.5 text-sm text-ink2 mb-4 flex-1">
               <li className="flex items-start gap-2"><Check size={15} className="text-ok shrink-0 mt-0.5" /> <span><b>{FREE_MINUTES} min</b> / month</span></li>
               <li className="flex items-start gap-2"><Check size={15} className="text-ok shrink-0 mt-0.5" /> <span>No credit card</span></li>
-              <li className="flex items-start gap-2"><Check size={15} className="text-muted shrink-0 mt-0.5" /> <span className="text-muted">Watermark · clips kept 7 days</span></li>
+              <li className="flex items-start gap-2"><Check size={15} className="text-muted shrink-0 mt-0.5" /> <span className="text-muted">Watermark Â· clips kept 7 days</span></li>
             </ul>
             <button onClick={startFree} className="w-full btn-primary text-sm">
               Start free <ArrowRight size={15} />
             </button>
-            <p className="text-center text-[11px] text-muted mt-2 lowercase">no card · start clipping now</p>
+            <p className="text-center text-[11px] text-muted mt-2 lowercase">no card Â· start clipping now</p>
           </div>
 
-          {/* Paid — compact list */}
+          {/* Paid â€” compact list */}
           <div className="card p-5 flex flex-col">
             <div className="flex items-center justify-between mb-1">
               <h3 className="font-display lowercase text-lg text-ink">paid plans</h3>
               <Zap size={16} className="text-brass" />
             </div>
-            <p className="text-muted text-xs mb-3 lowercase">no watermark · auto-posting · autopilot · more minutes</p>
+            <p className="text-muted text-xs mb-3 lowercase">no watermark Â· auto-posting Â· autopilot Â· more minutes</p>
             <div className="space-y-2 flex-1">
               {PLAN_ORDER.map((p) => {
                 const e = byPlan(p);
@@ -96,15 +96,15 @@ export default function PlanChoiceModal({ onClose }) {
                 return (
                   <button key={p} onClick={() => checkout(e.price_id)} disabled={busy === e.price_id}
                     className="w-full flex items-center justify-between border border-rule hover:border-brass rounded-input px-3 py-2 text-left transition-colors disabled:opacity-50">
-                    <span className="text-sm text-ink capitalize">{p} <span className="text-muted">· {e.minutes} min</span></span>
-                    <span className="readout">{busy === e.price_id ? '…' : `${fmt(e.amount, e.currency)}/mo`}</span>
+                    <span className="text-sm text-ink capitalize">{p} <span className="text-muted">Â· {e.minutes} min</span></span>
+                    <span className="readout">{busy === e.price_id ? 'â€¦' : `${fmt(e.amount, e.currency)}/mo`}</span>
                   </button>
                 );
               })}
             </div>
             <button onClick={() => { onClose(); window.location.hash = '#/pricing'; }}
               className="text-center text-[11px] text-muted mt-3 lowercase hover:text-ink transition-colors">
-              see full pricing & yearly →
+              see full pricing & yearly â†’
             </button>
           </div>
         </div>

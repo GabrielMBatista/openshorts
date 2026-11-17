@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { Download, Share2, AlertCircle, Loader2, Copy, Check, Wand2, Type, Calendar, Languages, FileText, Link2, Scissors, Crosshair, TrendingUp } from 'lucide-react';
 import { getApiUrl } from '../config';
 import { apiFetch } from '../lib/api';
 import { platformOptions as buildPlatformOptions, defaultPlatformFlags, flagsFromList } from '../lib/socialPlatforms';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import SubtitleModal from './SubtitleModal';
 import HookModal from './HookModal';
 import TranslateModal from './TranslateModal';
@@ -223,7 +223,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
             setCopied(field);
             setTimeout(() => setCopied(null), 2000);
         } catch {
-            // clipboard unavailable — silent
+            // clipboard unavailable â€” silent
         }
     };
 
@@ -256,7 +256,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
 
     // True when the current server file already carries burned-in content.
     // Browser (Remotion) renders compose over the ORIGINAL clip, so using them
-    // here would silently drop those burns — chain via server FFmpeg instead.
+    // here would silently drop those burns â€” chain via server FFmpeg instead.
     const hasServerBurns = /(^|_)(subtitled|hook|hooked)_/.test(serverVideoFile || '');
 
     // The hook currently burned into the server file (auto-hook or a manual
@@ -276,7 +276,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
     }, [jobId, index]);
 
     // Which platforms the selected profile actually has linked. `null` means
-    // unknown (profile list not loaded) — in that case nothing is gated.
+    // unknown (profile list not loaded) â€” in that case nothing is gated.
     const knownConnections = Array.isArray(connectedPlatforms);
     const noAccountsConnected = knownConnections && connectedPlatforms.length === 0;
     const platformOptions = knownConnections
@@ -496,7 +496,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
             if (data.new_video_url) {
                 const serverUrl = getApiUrl(data.new_video_url);
                 setServerVideoFile(data.new_video_url.split('/').pop());
-                // Subtitles are burned into the server file now — drop the
+                // Subtitles are burned into the server file now â€” drop the
                 // browser subtitle layer and re-compose any remaining browser
                 // layers (hook/effects) over the new file so they aren't lost.
                 const remaining = { ...activeLayers, subtitles: null };
@@ -679,7 +679,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
         }
     };
 
-    // Managed (cloud plan/trial) users post with the server-side key — no BYOK needed
+    // Managed (cloud plan/trial) users post with the server-side key â€” no BYOK needed
     const canPost = isManaged || (uploadPostKey && uploadUserId);
 
     const handlePost = async () => {
@@ -749,7 +749,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
             }
             // A 200 only means Upload-Post took the file: follow the post to
             // its real end, so a platform that fails says so here.
-            setPostResult({ success: true, msg: "Publishing…" });
+            setPostResult({ success: true, msg: "Publishingâ€¦" });
             const outcome = await followPost(sent.request_id);
             if (outcome.failed.length) {
                 setPostResult({ success: false, msg: `Failed on ${outcome.failed.join('; ')}` });
@@ -779,7 +779,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
 
     return (
         <div className="card overflow-hidden flex flex-col md:flex-row group hover:border-rule2 transition-colors animate-fade md:min-h-[420px]" style={{ animationDelay: `${index * 0.1}s` }}>
-            {/* Left: Video Preview — 9:16 column matching the fixed card height */}
+            {/* Left: Video Preview â€” 9:16 column matching the fixed card height */}
             {/* A full-width 9:16 preview on a phone is ~640px tall on its own,
                 which pushed the title, captions and every action off-screen.
                 Capping the height and centring keeps the whole card scannable
@@ -792,17 +792,17 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                     className="w-full h-full object-contain"
                     playsInline
                     onLoadedMetadata={(e) => {
-                        if (e.target.videoWidth) setResolution(`${e.target.videoWidth}×${e.target.videoHeight}`);
+                        if (e.target.videoWidth) setResolution(`${e.target.videoWidth}Ã—${e.target.videoHeight}`);
                     }}
                     onError={() => {
                         // The durable copy is unreachable (signature expired after an
-                        // hour on an idle tab, object purged) → serve from the API for
+                        // hour on an idle tab, object purged) â†’ serve from the API for
                         // the rest of this card's life.
                         if (playbackUrl === durableSrc) {
                             setDurableFailed(true);
                             return;
                         }
-                        // Local /videos/ file gone (e.g. cleaned up after a reload) →
+                        // Local /videos/ file gone (e.g. cleaned up after a reload) â†’
                         // fall back to the durable R2 copy for managed users. If the
                         // durable URL hasn't loaded yet, the effect above retries.
                         if (durable?.url && currentVideoUrl !== durable.url) setCurrentVideoUrl(durable.url);
@@ -829,7 +829,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         Clip {index + 1}
                     </span>
                     {/* A bare number on a thumbnail reads as a duration, a
-                        position, anything — it has to name itself and carry
+                        position, anything â€” it has to name itself and carry
                         its scale, or it is decoration. */}
                     {Number.isFinite(clip.predicted_score) && (
                         <span
@@ -854,8 +854,8 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                 {isEditing && (
                     <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-10 p-4 text-center">
                         <Loader2 size={28} className="text-brass animate-spin mb-3" />
-                        <span className="text-xs text-ink lowercase">ai magic in progress…</span>
-                        <span className="readout mt-1.5">APPLYING VIRAL EDITS · ZOOMS</span>
+                        <span className="text-xs text-ink lowercase">ai magic in progressâ€¦</span>
+                        <span className="readout mt-1.5">APPLYING VIRAL EDITS Â· ZOOMS</span>
                     </div>
                 )}
             </div>
@@ -900,7 +900,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                     </div>
                 </div>
 
-                {/* Descriptions (compact) — full text lives in the modal */}
+                {/* Descriptions (compact) â€” full text lives in the modal */}
                 <div className="flex-1 min-h-0 space-y-2 mb-4">
                     <div className="bg-paper rounded-input px-3 py-2 border border-rule flex items-center gap-2 min-w-0 overflow-hidden">
                         <span className="eyebrow shrink-0">YOUTUBE</span>
@@ -917,7 +917,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                     </div>
 
                     <div className="bg-paper rounded-input px-3 py-2 border border-rule flex items-center gap-2 min-w-0 overflow-hidden">
-                        <span className="eyebrow shrink-0">TIKTOK · IG</span>
+                        <span className="eyebrow shrink-0">TIKTOK Â· IG</span>
                         <p className="text-xs text-ink2 truncate flex-1 min-w-0">
                             {clip.video_description_for_tiktok || clip.video_description_for_instagram}
                         </p>
@@ -974,7 +974,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         className={QUIET_BTN}
                     >
                         {isEditing ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Wand2 size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />}
-                        {isEditing ? 'editing…' : 'auto edit'}
+                        {isEditing ? 'editingâ€¦' : 'auto edit'}
                     </button>
 
                     <button
@@ -983,7 +983,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         className={QUIET_BTN}
                     >
                         {isSubtitling ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Type size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />}
-                        {isSubtitling ? 'adding…' : 'subtitles'}
+                        {isSubtitling ? 'addingâ€¦' : 'subtitles'}
                     </button>
 
                     <button
@@ -992,7 +992,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         className={QUIET_BTN}
                     >
                         {isHooking ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Wand2 size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />}
-                        {isHooking ? 'saving…' : 'edit hook'}
+                        {isHooking ? 'savingâ€¦' : 'edit hook'}
                     </button>
 
                     <button
@@ -1001,7 +1001,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                         className={QUIET_BTN}
                     >
                         {isTranslating ? <Loader2 size={16} className="animate-spin text-brass shrink-0" /> : <Languages size={16} className="text-muted group-hover:text-brass transition-colors shrink-0" />}
-                        {isTranslating ? 'translating…' : 'dub voice'}
+                        {isTranslating ? 'translatingâ€¦' : 'dub voice'}
                     </button>
 
                     <button
@@ -1013,7 +1013,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                     <button
                         onClick={(e) => {
                             e.preventDefault();
-                            // Free clips are watermarked — surface the upsell once
+                            // Free clips are watermarked â€” surface the upsell once
                             // before the first download, then get out of the way.
                             if (plan === 'free' && !watermarkNoticeDismissed(jobId)) {
                                 setShowWatermarkModal(true);
@@ -1056,7 +1056,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
 
                     <div>
                         <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <label className="eyebrow">TIKTOK · IG CAPTION</label>
+                            <label className="eyebrow">TIKTOK Â· IG CAPTION</label>
                             <button
                                 onClick={() => handleCopy('caption', clip.video_description_for_tiktok || clip.video_description_for_instagram)}
                                 aria-label="copy caption"
@@ -1090,7 +1090,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                             disabled={posting || !canPost}
                             className="btn-primary w-full"
                         >
-                            {posting ? <><Loader2 size={16} className="animate-spin" /> {isScheduling ? 'scheduling…' : 'publishing…'}</> : <><Share2 size={16} /> {isScheduling ? 'schedule post' : 'publish now'}</>}
+                            {posting ? <><Loader2 size={16} className="animate-spin" /> {isScheduling ? 'schedulingâ€¦' : 'publishingâ€¦'}</> : <><Share2 size={16} /> {isScheduling ? 'schedule post' : 'publish now'}</>}
                         </button>
                     )
                 }
@@ -1105,7 +1105,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                 {noAccountsConnected && (
                     <div className="mb-4 px-3 py-2 rounded-input text-xs text-warn bg-[color-mix(in_oklab,var(--color-warn)_10%,transparent)] flex items-start gap-2">
                         <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                        <div className="lowercase">no social accounts connected yet — link tiktok, instagram, youtube, facebook, linkedin, threads or bluesky to publish this clip.</div>
+                        <div className="lowercase">no social accounts connected yet â€” link tiktok, instagram, youtube, facebook, linkedin, threads or bluesky to publish this clip.</div>
                     </div>
                 )}
 
@@ -1123,7 +1123,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                             value={postTitle}
                             onChange={(e) => setPostTitle(e.target.value)}
                             className="input-field"
-                            placeholder="enter a catchy title…"
+                            placeholder="enter a catchy titleâ€¦"
                         />
                     </div>
 
@@ -1134,7 +1134,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
                             onChange={(e) => setPostDescription(e.target.value)}
                             rows={4}
                             className="input-field resize-none"
-                            placeholder="write a caption for your post…"
+                            placeholder="write a caption for your postâ€¦"
                         />
                     </div>
 
@@ -1154,7 +1154,7 @@ export default function ResultCard({ clip, index, jobId, durable, uploadPostKey,
 
                         {isScheduling && (
                             <div className="mt-3 animate-fade">
-                                <label className="eyebrow block mb-1.5">DATE · TIME</label>
+                                <label className="eyebrow block mb-1.5">DATE Â· TIME</label>
                                 <input
                                     type="datetime-local"
                                     value={scheduleDate}

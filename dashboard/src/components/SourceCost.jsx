@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Loader2, Scissors } from 'lucide-react';
 import { apiJson } from '../lib/api';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 import { useAuth } from '../contexts/AuthContext';
 
 // What the source will cost, shown before Generate: the one complaint about
@@ -70,7 +70,7 @@ export default function SourceCost({ mode, url, fileSeconds, range, onRangeChang
     if (loading && !estimate) {
         return (
             <p className="mt-3 flex items-center gap-2 text-xs text-muted">
-                <Loader2 size={12} className="animate-spin" /> checking the video length…
+                <Loader2 size={12} className="animate-spin" /> checking the video lengthâ€¦
             </p>
         );
     }
@@ -90,24 +90,24 @@ export default function SourceCost({ mode, url, fileSeconds, range, onRangeChang
     if (range) {
         summary = (
             <span className={short ? 'text-warn' : 'text-ink2'}>
-                {clock(start)}–{clock(end)} of {clock(total)} · uses {rangeCost} of your {remaining} min
+                {clock(start)}â€“{clock(end)} of {clock(total)} Â· uses {rangeCost} of your {remaining} min
                 {short && ' (not enough left)'}
             </span>
         );
     } else if (estimate.outcome === 'whole') {
-        summary = <span className="text-ink2">{clock(total)} video · uses {estimate.cost_minutes} of your {remaining} min</span>;
+        summary = <span className="text-ink2">{clock(total)} video Â· uses {estimate.cost_minutes} of your {remaining} min</span>;
     } else if (estimate.outcome === 'first_video_free') {
-        summary = <span className="text-ink2">{clock(total)} video · your first video is clipped whole, on us</span>;
+        summary = <span className="text-ink2">{clock(total)} video Â· your first video is clipped whole, on us</span>;
     } else if (estimate.outcome === 'first_part') {
         summary = (
             <span className="text-ink2">
-                {clock(total)} video · longer than your {remaining} min left, so we clip the first {estimate.processed_minutes} min
+                {clock(total)} video Â· longer than your {remaining} min left, so we clip the first {estimate.processed_minutes} min
             </span>
         );
     } else {
         summary = (
             <span className="text-warn">
-                {clock(total)} video · needs {estimate.cost_minutes} min, you have {remaining}
+                {clock(total)} video Â· needs {estimate.cost_minutes} min, you have {remaining}
             </span>
         );
     }

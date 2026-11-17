@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import Modal from './ui/Modal';
 import { apiJson } from '../lib/api';
-import { track } from '../lib/analytics';
+import { track } from '../lib/insights';
 
 const DISMISS_KEY = 'os_watermark_notice_dismissed';
 const SEEN_PREFIX = 'os_watermark_noticed_';
@@ -108,7 +108,7 @@ export default function WatermarkModal({ onClose, onContinue, onUpgrade, preview
             {source === 'download' ? 'Download anyway' : 'Keep the watermark'}
           </button>
           <button onClick={upgrade} className="btn-primary px-4 py-2 text-sm">
-            {price ? `Remove the watermark · from ${price}/mo` : 'Remove the watermark'}
+            {price ? `Remove the watermark Â· from ${price}/mo` : 'Remove the watermark'}
           </button>
         </div>
       </div>

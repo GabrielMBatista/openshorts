@@ -30,6 +30,8 @@ export default function ReframeEditor({ jobId, clipIndex, clipTitle, onClose, on
     const [overrides, setOverrides] = useState({});   // idx -> number | {top,bottom}
     const [playing, setPlaying] = useState(null);     // scene index being played
     const [saving, setSaving] = useState(false);
+    const [savingPreset, setSavingPreset] = useState(false);
+    const [presetName, setPresetName] = useState(null);
 
     useEffect(() => {
         let alive = true;
@@ -107,6 +109,43 @@ export default function ReframeEditor({ jobId, clipIndex, clipTitle, onClose, on
             return next;
         });
     }, []);
+
+    // Copy this scene's single window to every other scene: a fixed webcam
+    // (mascot, vtuber, puppet) sits in the same columns for the whole video,
+    // so one drag plus one copy frames the entire clip.
+    const applyToAll = useCallback((idx) => {
+        setOverrides((o) => {
+            const v = o[idx];
+            if (typeof v !== 'number' || !data?.scenes) return o;
+            const next = { ...o };
+            for (const s of data.scenes) {
+                if (s.index !== idx) next[s.index] = clamp(v);
+            }
+            return next;
+        });
+    }, [data, clamp]);
+
+    // Persist the marked column as the channel's focus preset: every future
+    // job whose source matches this name starts tracking it (main.py
+    // detect_focus_candidate) instead of guessing.
+    const salvarPadrao = useCallback(async (fraction) => {
+        const def = (clipTitle || '').split(' ').slice(0, 4).join(' ').toLowerCase() || 'meu canal';
+        const name = window.prompt('nome do padrão (combina com todo vídeo desse canal)', def);
+        if (!name) return;
+        setSavingPreset(true);
+        try {
+            await apiJson('/api/focus-preset', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, x: fraction }),
+            });
+            setPresetName(name);
+        } catch (e) {
+            setError(e?.message || 'could not save the preset.');
+        } finally {
+            setSavingPreset(false);
+        }
+    }, [clipTitle]);
 
     const adjusted = Object.keys(overrides).length;
 
@@ -189,12 +228,21 @@ export default function ReframeEditor({ jobId, clipIndex, clipTitle, onClose, on
                             onMoveHalf={(which, f) => setSplitHalf(scene.index, which, f)}
                             onToggleSplit={() => toggleSplit(scene.index, scene)}
                             onReset={() => resetScene(scene.index)}
+                            onApplyAll={() => applyToAll(scene.index)}
+                            onSavePreset={typeof overrides[scene.index] === 'number'
+                                ? () => salvarPadrao(overrides[scene.index]) : null}
+                            savingPreset={savingPreset}
                         />
                     ))}
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border-t border-rule">
                     <span className="text-xs text-muted">
+                        {presetName && (
+                            <span className="block text-brass">
+                                preset '{presetName}' saved — future videos of this channel start framed on it
+                            </span>
+                        )}
                         {adjusted === 0
                             ? 'nothing adjusted yet'
                             : `${adjusted} scene${adjusted > 1 ? 's' : ''} reframed by hand`}
@@ -222,7 +270,8 @@ export default function ReframeEditor({ jobId, clipIndex, clipTitle, onClose, on
 // seeked to this scene, so the rectangle can be judged against moving pictures
 // and sound rather than a single still.
 function SceneRow({ scene, value, widthFraction, previewUrl, touched, playing,
-                    onPlayToggle, onMoveSingle, onMoveHalf, onToggleSplit, onReset }) {
+                    onPlayToggle, onMoveSingle, onMoveHalf, onToggleSplit, onReset,
+                    onApplyAll }) {
     const boxRef = useRef(null);
     const videoRef = useRef(null);
     const [dragging, setDragging] = useState(null);   // null | 'single' | 'top' | 'bottom'
@@ -320,6 +369,25 @@ function SceneRow({ scene, value, widthFraction, previewUrl, touched, playing,
                     >
                         <Columns2 size={12} /> split
                     </button>
+                    {onApplyAll && typeof value === 'number' && (
+                        <button
+                            onClick={onApplyAll}
+                            className="text-muted hover:text-brass transition-colors"
+                            title="use this framing on every scene (fixed webcam / vtuber / mascot)"
+                        >
+                            copy to all
+                        </button>
+                    )}
+                    {onSavePreset && (
+                        <button
+                            onClick={onSavePreset}
+                            disabled={savingPreset}
+                            className="text-muted hover:text-brass transition-colors"
+                            title="track this region automatically on every video of this channel (also follows it if the camera moves)"
+                        >
+                            save as preset
+                        </button>
+                    )}
                     {touched ? (
                         <button onClick={onReset} className="flex items-center gap-1 text-brass hover:underline">
                             <RotateCcw size={12} /> automatic
